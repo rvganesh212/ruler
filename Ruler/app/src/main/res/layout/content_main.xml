@@ -18,6 +18,8 @@
         <!--android:text="Hello World!" />-->
 
     <com.example.zhixuanlai.ruler.RulerView
+        style="@style/RulerViewStyle"
+        android:id="@+id/ruler_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
