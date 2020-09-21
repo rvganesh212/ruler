@@ -1,10 +1,13 @@
 package com.example.zhixuanlai.ruler;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PointF;
+import android.graphics.Typeface;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.SparseArray;
@@ -25,10 +28,10 @@ http://developer.android.com/training/custom-views/optimizing-view.html
 http://developer.android.com/reference/android/graphics/Canvas.html
 http://developer.android.com/reference/android/graphics/Paint.html
 */
-
 /**
  * Screen size independent ruler view.
  */
+
 public class RulerView extends View {
 
     private Unit unit;
@@ -49,36 +52,49 @@ public class RulerView extends View {
     private float labelTextSize;
     private String defaultLabelText;
     private int labelColor;
+    private boolean vertical;
 
     private int backgroundColor;
 
     private float pointerRadius;
     private float pointerStrokeWidth;
     private int pointerColor;
+    private Typeface type;
+
+    public void setDefaultLabelText(String defaultLabelText) {
+        this.defaultLabelText = defaultLabelText;
+    }
 
     /**
      * Creates a new RulerView.
      */
+
     public RulerView(Context context) {
         this(context, null);
+        type = Typeface.createFromAsset(context.getAssets(), "fonts/iransans.ttf");
     }
+
 
     public RulerView(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
+        type = Typeface.createFromAsset(context.getAssets(), "fonts/iransans.ttf");
     }
 
     public RulerView(Context context, AttributeSet attrs, int defStyleAttr) {
         this(context, attrs, defStyleAttr, 0);
+        type = Typeface.createFromAsset(context.getAssets(), "fonts/iransans.ttf");
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public RulerView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
+        type = Typeface.createFromAsset(context.getAssets(), "fonts/iransans.ttf");
 
         final TypedArray a = context.obtainStyledAttributes(
                 attrs, R.styleable.RulerView, defStyleAttr, defStyleRes);
 
-        guideScaleTextSize = a.getDimension(R.styleable.RulerView_guideScaleTextSize, 40);
-        graduatedScaleWidth = a.getDimension(R.styleable.RulerView_graduatedScaleWidth, 8);
+        guideScaleTextSize = a.getDimension(R.styleable.RulerView_guideScaleTextSize, 50);
+        graduatedScaleWidth = a.getDimension(R.styleable.RulerView_graduatedScaleWidth, 10);
         graduatedScaleBaseLength =
                 a.getDimension(R.styleable.RulerView_graduatedScaleBaseLength, 100);
         scaleColor = a.getColor(R.styleable.RulerView_scaleColor, 0xFF03070A);
@@ -86,16 +102,16 @@ public class RulerView extends View {
         labelTextSize = a.getDimension(R.styleable.RulerView_labelTextSize, 60);
         defaultLabelText = a.getString(R.styleable.RulerView_defaultLabelText);
         if (defaultLabelText == null) {
-            defaultLabelText = "Measure with two fingers";
+            defaultLabelText = "2 fingers :) !!";
         }
         labelColor = a.getColor(R.styleable.RulerView_labelColor, 0xFF03070A);
 
         backgroundColor = a.getColor(R.styleable.RulerView_backgroundColor, 0xFFFACC31);
 
         pointerColor = a.getColor(R.styleable.RulerView_pointerColor, 0xFF03070A);
-        pointerRadius = a.getDimension(R.styleable.RulerView_pointerRadius, 60);
+        pointerRadius = a.getDimension(R.styleable.RulerView_pointerRadius, 40);
         pointerStrokeWidth = a.getDimension(R.styleable.RulerView_pointerStrokeWidth, 8);
-
+        vertical = a.getBoolean(R.styleable.RulerView_vertical, true);
         dm = getResources().getDisplayMetrics();
         unit = new Unit(dm.ydpi);
         unit.setType(a.getInt(R.styleable.RulerView_unit, 0));
@@ -115,10 +131,11 @@ public class RulerView extends View {
     }
 
     private void initRulerView() {
-        activePointers = new SparseArray<>();
+        activePointers = new SparseArray();
 
-        scalePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        scalePaint = new Paint(Paint.EMBEDDED_BITMAP_TEXT_FLAG);
         scalePaint.setStrokeWidth(graduatedScaleWidth);
+        scalePaint.setTypeface(type);
         scalePaint.setTextSize(guideScaleTextSize);
         scalePaint.setColor(scaleColor);
 
@@ -135,6 +152,7 @@ public class RulerView extends View {
         pointerPaint.setStyle(Paint.Style.STROKE);
     }
 
+    @TargetApi(Build.VERSION_CODES.FROYO)
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int pointerIndex = event.getActionIndex();
@@ -171,40 +189,69 @@ public class RulerView extends View {
         return true;
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-
         int width = getWidth();
         int height = getHeight();
         int paddingTop = getPaddingTop();
         int paddingLeft = getPaddingLeft();
+        float startX = 0;
+        float startY = 0;
+        float endX = 0;
+        float endY = 0;
+
 
         // Draw background.
         canvas.drawPaint(backgroundPaint);
 
         // Draw scale.
-        Iterator<Unit.Graduation> pixelsIterator = unit.getPixelIterator(height - paddingTop);
-        while(pixelsIterator.hasNext()) {
-            Unit.Graduation graduation = pixelsIterator.next();
+        if (vertical) {
+            Iterator<Unit.Graduation> pixelsIterator = unit.getPixelIterator(height - paddingTop);
+            while (pixelsIterator.hasNext()) {
+                Unit.Graduation graduation = pixelsIterator.next();
 
-            float startX = width - graduation.relativeLength * graduatedScaleBaseLength;
-            float startY = paddingTop + graduation.pixelOffset;
-            float endX = width;
-            float endY = startY;
-            canvas.drawLine(startX, startY, endX, endY, scalePaint);
+                startX = width - graduation.relativeLength * graduatedScaleBaseLength;
+                startY = paddingTop + graduation.pixelOffset;
+                endX = width;
+                endY = startY;
+                canvas.drawLine(startX, startY, endX, endY, scalePaint);
+                if (graduation.value % 1 == 0) {
+                    String text = (int) graduation.value + "";
 
-            if (graduation.value % 1 == 0) {
-                String text = (int) graduation.value + "";
+                    canvas.save();
+                    canvas.translate(
+                            startX - guideScaleTextSize, startY - scalePaint.measureText(text) / 2);
+                    canvas.rotate(90);
+                    canvas.drawText(text, 0, 0, scalePaint);
+                    canvas.restore();
+                }
+            }
+        } else {
+            Iterator<Unit.Graduation> pixelsIterator = unit.getPixelIterator(width - paddingLeft);
+            while (pixelsIterator.hasNext()) {
+                Unit.Graduation graduation = pixelsIterator.next();
+                startX = height;
+                startY = (paddingTop + graduation.pixelOffset);
+                endX = height - (graduation.relativeLength * graduatedScaleBaseLength);
+                endY = startY;
+                canvas.drawLine(startY, startX, endY, endX, scalePaint);
+                if (graduation.value % 1 == 0) {
+                    String text = (int) graduation.value + "";
 
-                canvas.save();
-                canvas.translate(
-                        startX - guideScaleTextSize, startY - scalePaint.measureText(text) / 2);
-                canvas.rotate(90);
-                canvas.drawText(text, 0, 0, scalePaint);
-                canvas.restore();
+                    canvas.save();
+                    canvas.translate(
+                            startY, endX / 2);
+                    canvas.rotate(0);
+                    canvas.drawText(text, 0, 0, scalePaint);
+                    canvas.restore();
+                }
+
+
             }
         }
+
 
         // Draw active pointers.
         PointF topPointer = null;
@@ -245,6 +292,7 @@ public class RulerView extends View {
 
         // Draw Text label.
         String labelText = defaultLabelText;
+
         if (topPointer != null) {
             float distanceInPixels = Math.abs(topPointer.y - bottomPointer.y);
             labelText = unit.getStringRepresentation(distanceInPixels / unit.getPixelsPerUnit());
@@ -254,7 +302,7 @@ public class RulerView extends View {
 
     @Override
     protected int getSuggestedMinimumWidth() {
-        return 200;
+        return getWidth();
     }
 
     @Override
@@ -300,7 +348,7 @@ public class RulerView extends View {
         public String getStringRepresentation(float value) {
             String suffix = "";
             if (type == INCH) {
-                suffix = value > 1 ? "Inches" : "Inch";
+                suffix = value > 1 ? "INCH" : "INCHS";
             } else if (type == CM) {
                 suffix = "CM";
             }
@@ -332,7 +380,7 @@ public class RulerView extends View {
                     graduation.pixelOffset = getPixels();
                     graduation.relativeLength = getGraduatedScaleRelativeLength(graduationIndex);
 
-                    graduationIndex ++;
+                    graduationIndex++;
                     return graduation;
                 }
 
@@ -365,7 +413,7 @@ public class RulerView extends View {
             if (type == INCH) {
                 if (graduationIndex % 4 == 0) {
                     return 1f;
-                } else if (graduationIndex% 2 == 0) {
+                } else if (graduationIndex % 2 == 0) {
                     return 3 / 4f;
                 } else {
                     return 1 / 2f;
@@ -383,5 +431,5 @@ public class RulerView extends View {
         }
 
     }
-
 }
+
