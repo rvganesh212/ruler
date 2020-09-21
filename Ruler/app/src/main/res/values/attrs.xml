@@ -5,7 +5,7 @@
             <enum name="inch" value="0"/>
             <enum name="cm" value="1"/>
         </attr>
-
+        <attr name="vertical" format="boolean"/>
         <attr name="guideScaleTextSize" format="dimension" />
         <attr name="graduatedScaleWidth" format="dimension" />
         <attr name="graduatedScaleBaseLength" format="dimension" />
